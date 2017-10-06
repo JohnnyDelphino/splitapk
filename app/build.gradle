@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+def exampleBuildCount = 12345
+
+// VersionCodes for different APKs
+// https://developer.android.com/google/play/publishing/multiple-apks.html#VersionCodes
+
 android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
@@ -8,7 +13,7 @@ android {
         minSdkVersion 19
         targetSdkVersion 25
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -18,24 +23,31 @@ android {
         }
     }
 
-    productFlavors{
-        full{
-
+    productFlavors {
+        full {
+            versionCode = 2 // will be overriden after evaluate by VersionCode according to scheme
         }
 
-        x86only{
+        x86only {
+            // min featureset should have lower versionCode/prefix in case we want to upgrade it later to the other variant / include it in the other variant
+            versionCode = 1 // will be overriden after evaluate by VersionCode according to scheme
             ndk.abiFilters 'x86,x86_64'
         }
+    }
+
+}
+android.applicationVariants.all { variant ->
+    variant.outputs.each { output ->
+        // override VersionCode matching scheme
+        output.versionCodeOverride = assembleVersionScheme(output.versionCode, exampleBuildCount)
+
+        println("VersionCode matching scheme: " + output.versionCode)
     }
 }
 
 // ABIs: armeabi, armeabi-v7a, arm64-v8a, x86, x86_64, mips, mips64
 // https://developer.android.com/ndk/guides/abis.html
 
-android.applicationVariants.all{ variant ->
-    println("Name of Variant: " + variant.outputs)
-
-}
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
@@ -48,3 +60,19 @@ dependencies {
     fullCompile project(':testlib')
     fullCompile project(':testlib')
 }
+
+def assembleVersionScheme(variantCode, buildCount) {
+    // Scheme: max 9 Bit
+    def productVariant = variantCode
+    def theBuildCount = buildCount
+
+    def code = String.format("%01d%08d", productVariant, theBuildCount)
+
+    println("Versioncode according to TargetScheme: " + code);
+
+    return Integer.parseInt(code)
+
+}
+
+
+
