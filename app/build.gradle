@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def exampleBuildCount = 12345
+def exampleBuildCount = 12347
 
 // VersionCodes for different APKs
 // https://developer.android.com/google/play/publishing/multiple-apks.html#VersionCodes
@@ -13,7 +13,7 @@ android {
         minSdkVersion 19
         targetSdkVersion 25
         versionCode 1
-        versionName "1.0.0"
+        versionName "1.0.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -23,26 +23,53 @@ android {
         }
     }
 
+    // https://stackoverflow.com/questions/34592507/using-apk-splits-for-release-but-not-debug-build-type
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include getFlavorRelatedAbis()
+            universalApk false
+        }
+    }
+    
+
     productFlavors {
         full {
             versionCode = 2 // will be overriden after evaluate by VersionCode according to scheme
-            ndk.abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+
         }
 
         x86only {
-            // min featureset should have lower versionCode/prefix in case we want to upgrade it later to the other variant / include it in the other variant
             versionCode = 1 // will be overriden after evaluate by VersionCode according to scheme
-            ndk.abiFilters 'x86', 'x86_64'
         }
     }
 
 }
-android.applicationVariants.all { variant ->
-    variant.outputs.each { output ->
-        // override VersionCode matching scheme
-        output.versionCodeOverride = assembleVersionScheme(output.versionCode, exampleBuildCount)
 
-        println("VersionCode matching scheme: " + output.versionCode)
+// Map for the version code that gives each ABI a value.
+ext.abiCodes = ['armeabi': 1, 'armeabi-v7a': 2, 'arm64-v8a': 3, 'x86': 4, 'x86_64': 5, 'mips': 6, 'mips64': 7]
+
+//ext.abiCodes = ['arm64-v7a': 1, 'armeabi-v8a': 2, 'x86': 3, 'x86_64': 4]
+
+import com.android.build.OutputFile
+
+android.applicationVariants.all { variant ->
+
+    variant.outputs.each { output ->
+
+        println("Output ABI:" + output.getFilter(OutputFile.ABI))
+
+        // Stores the value of ext.abiCodes that is associated with the ABI for this variant.
+        def baseAbiVersionCode =
+                // Determines the ABI for this variant and returns the mapped value.
+                project.ext.abiCodes.get(output.getFilter(OutputFile.ABI))
+
+        // override VersionCode matching scheme
+        if (baseAbiVersionCode != null) {
+            output.versionCodeOverride = assembleVersionScheme(baseAbiVersionCode, exampleBuildCount)
+        }
     }
 }
 
@@ -75,5 +102,22 @@ def assembleVersionScheme(variantCode, buildCount) {
 
 }
 
+def getFlavorRelatedAbis() {
+    def String[] x86Abis = ['x86', 'x86_64']
+    def String[] nonX86Abis = ['armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64']
+    def String[] allAbis = ['armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64', 'x86', 'x86_64']
+
+    println("Taksnames: " + gradle.startParameter.taskNames)
+
+    if (gradle.startParameter.taskNames.any{it.contains("X86only")}) {
+        println("Uses Abis: " + x86Abis)
+        return x86Abis
+    } else if (gradle.startParameter.taskNames.any{it.contains("Full")}) {
+        println("Uses Abis: " + nonX86Abis)
+        return nonX86Abis
+    }
+
+    return allAbis
+}
 
 
