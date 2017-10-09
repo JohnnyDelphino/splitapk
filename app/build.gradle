@@ -26,12 +26,13 @@ android {
     productFlavors {
         full {
             versionCode = 2 // will be overriden after evaluate by VersionCode according to scheme
+            ndk.abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
         }
 
         x86only {
             // min featureset should have lower versionCode/prefix in case we want to upgrade it later to the other variant / include it in the other variant
             versionCode = 1 // will be overriden after evaluate by VersionCode according to scheme
-            ndk.abiFilters 'x86,x86_64'
+            ndk.abiFilters 'x86', 'x86_64'
         }
     }
 
